@@ -62,6 +62,8 @@ En imágenes generadas por IA, el espectro FFT típicamente muestra:
 
 <img src="img/ejemplo_peaks_radiales.png" alt="Ejemplo peaks" width="200px" />
 
+<img src="img/ejemplo_patron_radial.png" alt="Ejemplo patrón radial" width="200px" />
+
 - **Patrones regulares**: Estructuras repetitivas que no corresponden a patrones naturales, sino a artefactos del proceso de generación
 
 Estos patrones son indicadores de creación sintética, ya que las imágenes reales fotografiadas naturalmente no presentan estas regularidades tan marcadas en el dominio de frecuencias. Las imágenes reales tienden a mostrar distribuciones espectrales más suaves sin picos pronunciados.
