@@ -9,6 +9,9 @@ Suite Forense permite analizar imágenes con tres técnicas principales: espectr
 ## Características
 
 - **Análisis FFT**: Visualización del espectro de frecuencias con controles de gamma, brillo y limpieza
+  - Vista 2D del espectro FFT (imagen)
+  - **Gráfico de líneas radial**: Visualización 1D del perfil radial del espectro (nuevo)
+  - Detección automática de peaks característicos de imágenes generadas por IA
 - **Mapa de Crominancia**: Ajustes de saturación, contraste y rotación de tono
 - **Residual Espacial**: Detección de patrones y texturas anómalas
 - **Interfaz Intuitiva**: Diseño moderno y fácil de usar
@@ -38,6 +41,16 @@ Luego abre `http://localhost:8000/forensic_tool.html`.
 
 El **espectro FFT** es una representación de la imagen en el dominio de frecuencias. La Transformada Rápida de Fourier convierte la imagen del dominio espacial (píxeles) al dominio de frecuencias, revelando patrones periódicos y regularidades que no son visibles a simple vista.
 
+**Visualizaciones disponibles:**
+
+- **Vista 2D**: Muestra el espectro FFT completo como una imagen, donde se pueden identificar patrones visuales característicos
+- **Gráfico de líneas radial**: Visualización 1D que muestra el perfil radial promedio del espectro (promedio de magnitud a cada distancia desde el centro). Esta visualización es consistente con metodologías científicas de análisis forense y facilita la identificación de peaks característicos de imágenes generadas por IA.
+
+El gráfico de líneas muestra:
+- **Eje X**: Frecuencia normalizada (0 = DC, 0.5 = Nyquist)
+- **Eje Y**: Magnitud del espectro (normalizada)
+- **Detección automática de peaks**: Los picos significativos se marcan automáticamente en rojo, ya que son indicadores característicos de imágenes sintéticas
+
 **¿Qué se ve normalmente en una imagen generada por IA?**
 
 En imágenes generadas por IA, el espectro FFT típicamente muestra:
@@ -45,13 +58,23 @@ En imágenes generadas por IA, el espectro FFT típicamente muestra:
 
 <img src="img/ejemplo_puntos_simetricos.png" alt="Ejemplo puntos" width="200px" />
 
-- **Peaks radiales definidos**: Líneas o patrones radiales que se extienden desde el centro, resultado de procesos de convolución y normalización utilizados en las redes neuronales generativas
+- **Peaks radiales definidos**: Líneas o patrones radiales que se extienden desde el centro, resultado de procesos de convolución y normalización utilizados en las redes neuronales generativas. En el gráfico de líneas, estos aparecen como picos pronunciados en frecuencias específicas.
 
 <img src="img/ejemplo_peaks_radiales.png" alt="Ejemplo peaks" width="200px" />
 
 - **Patrones regulares**: Estructuras repetitivas que no corresponden a patrones naturales, sino a artefactos del proceso de generación
 
-Estos patrones son indicadores creación sintética, ya que las imágenes reales fotografiadas naturalmente no presentan estas regularidades tan marcadas en el dominio de frecuencias.
+Estos patrones son indicadores de creación sintética, ya que las imágenes reales fotografiadas naturalmente no presentan estas regularidades tan marcadas en el dominio de frecuencias. Las imágenes reales tienden a mostrar distribuciones espectrales más suaves sin picos pronunciados.
+
+**Referencia científica:**
+
+La implementación del gráfico de líneas radial está basada en la metodología descrita en:
+
+> **"Discrete Fourier Transform in Unmasking Deepfake Images: A Comparative Study of StyleGAN Creations"**  
+> Information, MDPI, Volume 15, Issue 11, Article 711 (2024)  
+> DOI: [10.3390/info15110711](https://www.mdpi.com/2078-2489/15/11/711)
+
+Este paper demuestra que el análisis del perfil radial del espectro FFT mediante "azimuthal averaging" (promedio radial) es una técnica efectiva para distinguir imágenes generadas por IA de imágenes reales, logrando tasas de precisión superiores al 99% en la detección de deepfakes generados con StyleGAN.
 
 ### 2. Mapa de Crominancia
 
@@ -136,6 +159,14 @@ Para agregar, eliminar o renombrar imágenes de ejemplo:
 - **Tailwind CSS**: Framework CSS para el diseño
 - **JavaScript Vanilla**: Lógica de la aplicación
 
+## Referencias Científicas
+
+- **Análisis FFT Radial**: Basado en la metodología de "azimuthal averaging" descrita en:
+  - Li, Y., et al. (2024). "Discrete Fourier Transform in Unmasking Deepfake Images: A Comparative Study of StyleGAN Creations". *Information*, 15(11), 711. [https://www.mdpi.com/2078-2489/15/11/711](https://www.mdpi.com/2078-2489/15/11/711)
+
+- **Detección de Imágenes Sintéticas**: Metodologías y técnicas de análisis forense digital:
+  - Farid, H. (2024). "How to spot fake AI photos". TED Talk. [https://www.ted.com/talks/hany_farid_how_to_spot_fake_ai_photos](https://www.ted.com/talks/hany_farid_how_to_spot_fake_ai_photos)
+
 ## Estructura del Proyecto
 
 ```
@@ -156,7 +187,12 @@ suite-forense/
 - Algunas imágenes reales pueden mostrar ciertos artefactos similares debido a compresión o procesamiento (ej: ver camiseta del ejemplo 3_Seba. Se ven cuadros pues la imagen fue comprimida antes de ser procesada, pero estos cuadros son más pequeños de los que se ven en las imagenes generadas)
 - La combinación de las tres técnicas proporciona una evaluación más confiable que el uso individual de cada una
 
+
+## Bugs conocidos
+- El espectro FFT es algo dificil de correr en la memoria del navegador. Computadores con poca RAM van a tener dificultades y errores, incluyendo que no se cargue el espectro FFT o que al cambiarle parametros se rompa.
+
 ---
 
-**Actualizado**: 14 de enero de 2026 
-**Desarrollado por**: EvoAcademy
+**Actualizado**: 14 de enero de 2026  
+**Desarrollado por**: EvoAcademy  
+**Versión**: 1.1.0 (incluye visualización de gráfico radial FFT)

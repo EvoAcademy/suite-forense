@@ -113,10 +113,249 @@ let isProcessing = false;
 let pendingRequest = false;
 let debounceTimer = null;
 let resizeTimer = null;
+let fftViewMode = '2d'; // '2d' o 'line'
+let fftRadialProfile = null; // Datos del perfil radial para el gráfico de líneas
 
 // ============================================
 // Funciones de Utilidad
 // ============================================
+
+/**
+ * Calcula el perfil radial promedio del espectro FFT
+ * Retorna un array con la magnitud promedio a cada distancia desde el centro
+ */
+function calculateRadialProfile(magMat) {
+    const rows = magMat.rows;
+    const cols = magMat.cols;
+    const centerX = cols / 2;
+    const centerY = rows / 2;
+    const maxRadius = Math.min(centerX, centerY);
+    
+    // Array para acumular valores por radio
+    const radiusSums = [];
+    const radiusCounts = [];
+    
+    // Inicializar arrays
+    for (let r = 0; r < maxRadius; r++) {
+        radiusSums[r] = 0;
+        radiusCounts[r] = 0;
+    }
+    
+    // Recorrer todos los píxeles y acumular por radio
+    const data = magMat.data32F;
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const radius = Math.sqrt(dx * dx + dy * dy);
+            const radiusIndex = Math.floor(radius);
+            
+            if (radiusIndex < maxRadius) {
+                const value = data[y * cols + x];
+                radiusSums[radiusIndex] += value;
+                radiusCounts[radiusIndex]++;
+            }
+        }
+    }
+    
+    // Calcular promedios
+    const profile = [];
+    for (let r = 0; r < maxRadius; r++) {
+        if (radiusCounts[r] > 0) {
+            profile[r] = radiusSums[r] / radiusCounts[r];
+        } else {
+            profile[r] = 0;
+        }
+    }
+    
+    return profile;
+}
+
+/**
+ * Dibuja un gráfico de líneas del perfil radial del espectro FFT
+ * Consistente con el paper: "Discrete Fourier Transform in Unmasking Deepfake Images"
+ * Muestra la distribución de energía a través de componentes de frecuencia radial
+ */
+function drawLineChart(canvas, profile, gamma, gain, offset) {
+    if (!profile || profile.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 45;
+    const chartWidth = width - padding * 2;
+    const chartHeight = height - padding * 2;
+    
+    // Limpiar canvas
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Aplicar transformaciones a los datos (gamma, gain, offset)
+    const transformedProfile = profile.map(value => {
+        let transformed = Math.pow(value, gamma);
+        transformed = transformed * gain + offset;
+        return Math.max(0, Math.min(1, transformed)); // Clamp entre 0 y 1
+    });
+    
+    // Encontrar valores min y max para normalización
+    const maxValue = Math.max(...transformedProfile);
+    const minValue = Math.min(...transformedProfile);
+    const range = maxValue - minValue || 1;
+    
+    // Calcular frecuencia normalizada (0 a 0.5, donde 0.5 es la frecuencia de Nyquist)
+    // El radio máximo corresponde a la frecuencia de Nyquist
+    const maxRadius = profile.length;
+    const nyquistFreq = 0.5;
+    
+    // Configurar estilo de línea
+    ctx.strokeStyle = '#00BFFF';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(0, 191, 255, 0.15)';
+    
+    // Dibujar área bajo la curva
+    ctx.beginPath();
+    ctx.moveTo(padding, height - padding);
+    
+    for (let i = 0; i < transformedProfile.length; i++) {
+        // Convertir índice radial a frecuencia normalizada
+        const normalizedFreq = (i / maxRadius) * nyquistFreq;
+        const x = padding + (normalizedFreq / nyquistFreq) * chartWidth;
+        const normalizedValue = (transformedProfile[i] - minValue) / range;
+        const y = height - padding - normalizedValue * chartHeight;
+        ctx.lineTo(x, y);
+    }
+    
+    ctx.lineTo(padding + chartWidth, height - padding);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Dibujar línea principal
+    ctx.beginPath();
+    let firstPoint = true;
+    
+    for (let i = 0; i < transformedProfile.length; i++) {
+        const normalizedFreq = (i / maxRadius) * nyquistFreq;
+        const x = padding + (normalizedFreq / nyquistFreq) * chartWidth;
+        const normalizedValue = (transformedProfile[i] - minValue) / range;
+        const y = height - padding - normalizedValue * chartHeight;
+        
+        if (firstPoint) {
+            ctx.moveTo(x, y);
+            firstPoint = false;
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    
+    ctx.stroke();
+    
+    // Detectar y marcar peaks significativos (característicos de imágenes AI generadas)
+    const peakThreshold = minValue + range * 0.7; // Umbral para considerar un peak
+    const peaks = [];
+    for (let i = 1; i < transformedProfile.length - 1; i++) {
+        const prev = transformedProfile[i - 1];
+        const curr = transformedProfile[i];
+        const next = transformedProfile[i + 1];
+        
+        // Detectar peaks locales que exceden el umbral
+        if (curr > prev && curr > next && curr > peakThreshold) {
+            peaks.push({ index: i, value: curr });
+        }
+    }
+    
+    // Dibujar marcadores para peaks significativos
+    if (peaks.length > 0) {
+        ctx.fillStyle = '#FF6B6B';
+        ctx.strokeStyle = '#FF6B6B';
+        ctx.lineWidth = 1;
+        
+        peaks.forEach(peak => {
+            const normalizedFreq = (peak.index / maxRadius) * nyquistFreq;
+            const x = padding + (normalizedFreq / nyquistFreq) * chartWidth;
+            const normalizedValue = (peak.value - minValue) / range;
+            const y = height - padding - normalizedValue * chartHeight;
+            
+            // Dibujar círculo en el peak
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    }
+    
+    // Dibujar ejes y etiquetas
+    ctx.strokeStyle = '#666666';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#CCCCCC';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Eje X (frecuencia normalizada)
+    ctx.beginPath();
+    ctx.moveTo(padding, height - padding);
+    ctx.lineTo(padding + chartWidth, height - padding);
+    ctx.stroke();
+    
+    ctx.fillText('Frecuencia (0=DC, 0.5=Nyquist)', width / 2, height - 12);
+    
+    // Marcar valores en el eje X (menos valores para evitar sobreposición)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = '7px monospace';
+    for (let i = 0; i <= 4; i++) {
+        const freq = (i / 4) * nyquistFreq;
+        const x = padding + (freq / nyquistFreq) * chartWidth;
+        ctx.fillText(freq.toFixed(2), x, height - padding + 3);
+        
+        // Línea de guía vertical
+        ctx.strokeStyle = '#333333';
+        ctx.beginPath();
+        ctx.moveTo(x, padding);
+        ctx.lineTo(x, height - padding);
+        ctx.stroke();
+        ctx.strokeStyle = '#666666';
+    }
+    
+    // Eje Y (magnitud del espectro)
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.stroke();
+    
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = '8px monospace';
+    ctx.fillText('Magnitud', 0, 0);
+    ctx.restore();
+    
+    // Marcar algunos valores en el eje Y
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '7px monospace';
+    for (let i = 0; i <= 4; i++) {
+        const value = minValue + (range * i / 4);
+        const y = height - padding - (i / 4) * chartHeight;
+        ctx.fillText(value.toFixed(2), padding - 5, y);
+        
+        // Línea de guía horizontal
+        ctx.strokeStyle = '#333333';
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(padding + chartWidth, y);
+        ctx.stroke();
+        ctx.strokeStyle = '#666666';
+    }
+    
+    // Mostrar información sobre peaks detectados
+    if (peaks.length > 0) {
+        ctx.fillStyle = '#FF6B6B';
+        ctx.font = '7px monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`Picos: ${peaks.length}`, padding + 3, padding + 3);
+    }
+}
 
 const fullscreenIcons = {
     enter: `
@@ -348,7 +587,18 @@ const updateFftValues = () => {
     updateText('fftGammaVal', fftGamma.value, '');
     updateText('fftGainVal', fftGain.value, '');
     updateText('fftOffsetVal', fftOffset.value, '');
-    requestProcessing();
+    // Si estamos en modo línea, redibujar el gráfico sin reprocesar
+    if (fftViewMode === 'line' && fftRadialProfile) {
+        const fftSize = fftCanvas.parentElement.clientWidth;
+        fftCanvas.width = fftSize;
+        fftCanvas.height = fftSize;
+        const g = parseFloat(fftGamma.value);
+        const br = parseFloat(fftGain.value);
+        const off = parseFloat(fftOffset.value);
+        drawLineChart(fftCanvas, fftRadialProfile, g, br, off);
+    } else {
+        requestProcessing();
+    }
 };
 
 /**
@@ -523,6 +773,9 @@ function processAdvancedForensics(img) {
         // Normalización y Controles Dinámicos
         cv.normalize(shiftedMag, shiftedMag, 0, 1, cv.NORM_MINMAX, cv.CV_32F);
         
+        // Calcular perfil radial antes de aplicar transformaciones para visualización
+        fftRadialProfile = calculateRadialProfile(shiftedMag);
+        
         const g = parseFloat(fftGamma.value);
         const br = parseFloat(fftGain.value);
         const off = parseFloat(fftOffset.value);
@@ -530,11 +783,16 @@ function processAdvancedForensics(img) {
         cv.pow(shiftedMag, g, shiftedMag); 
         shiftedMag.convertTo(shiftedMag, cv.CV_8U, br * 255, off); 
         
-        // Mostrar resultados
+        // Mostrar resultados según el modo de visualización
         const fftSize = fftCanvas.parentElement.clientWidth;
         fftCanvas.width = fftSize;
         fftCanvas.height = fftSize;
-        renderMatToCanvas(shiftedMag, fftCanvas, cv.INTER_NEAREST);
+        
+        if (fftViewMode === 'line') {
+            drawLineChart(fftCanvas, fftRadialProfile, g, br, off);
+        } else {
+            renderMatToCanvas(shiftedMag, fftCanvas, cv.INTER_NEAREST);
+        }
 
     } catch (err) {
         console.error("Error crítico en procesamiento OpenCV:", err);
@@ -667,6 +925,39 @@ resetFftBtn.addEventListener('click', () => {
 });
 
 // ============================================
+// Toggle de Visualización FFT
+// ============================================
+
+const fftViewToggleBtn = document.getElementById('fftViewToggleBtn');
+
+function toggleFftView() {
+    fftViewMode = fftViewMode === '2d' ? 'line' : '2d';
+    
+    if (fftViewToggleBtn) {
+        fftViewToggleBtn.textContent = fftViewMode === '2d' ? 'Ver Gráfico de Líneas' : 'Ver Espectro 2D';
+    }
+    
+    // Redibujar según el nuevo modo
+    if (processedImg && cvReady) {
+        if (fftViewMode === 'line' && fftRadialProfile) {
+            const fftSize = fftCanvas.parentElement.clientWidth;
+            fftCanvas.width = fftSize;
+            fftCanvas.height = fftSize;
+            const g = parseFloat(fftGamma.value);
+            const br = parseFloat(fftGain.value);
+            const off = parseFloat(fftOffset.value);
+            drawLineChart(fftCanvas, fftRadialProfile, g, br, off);
+        } else {
+            requestProcessing();
+        }
+    }
+}
+
+if (fftViewToggleBtn) {
+    fftViewToggleBtn.addEventListener('click', toggleFftView);
+}
+
+// ============================================
 // Pantalla Completa para FFT
 // ============================================
 
@@ -687,7 +978,14 @@ function toggleFullscreen() {
                     fftCanvas.height = size;
                     // Redibujar el FFT si hay una imagen procesada
                     if (processedImg && cvReady) {
-                        requestProcessing();
+                        if (fftViewMode === 'line' && fftRadialProfile) {
+                            const g = parseFloat(fftGamma.value);
+                            const br = parseFloat(fftGain.value);
+                            const off = parseFloat(fftOffset.value);
+                            drawLineChart(fftCanvas, fftRadialProfile, g, br, off);
+                        } else {
+                            requestProcessing();
+                        }
                     }
                 }
             };
@@ -737,7 +1035,14 @@ document.addEventListener('fullscreenchange', () => {
                 fftCanvas.width = size;
                 fftCanvas.height = size;
                 if (processedImg && cvReady) {
-                    requestProcessing();
+                    if (fftViewMode === 'line' && fftRadialProfile) {
+                        const g = parseFloat(fftGamma.value);
+                        const br = parseFloat(fftGain.value);
+                        const off = parseFloat(fftOffset.value);
+                        drawLineChart(fftCanvas, fftRadialProfile, g, br, off);
+                    } else {
+                        requestProcessing();
+                    }
                 }
             }
         }
