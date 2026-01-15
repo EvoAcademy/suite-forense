@@ -20,7 +20,7 @@ Suite Forense permite analizar imágenes con tres técnicas principales: espectr
 
 ## Inicio Rápido
 
-1. Abre `forensic_tool.html` en un navegador moderno
+1. Abre `index.html` en un navegador moderno
 2. Espera a que OpenCV.js se cargue (estado "Motor Listo")
 3. Carga una imagen o selecciona un ejemplo
 4. Ajusta los controles para resaltar artefactos
@@ -33,7 +33,7 @@ Suite Forense permite analizar imágenes con tres técnicas principales: espectr
 python3 -m http.server 8000
 ```
 
-Luego abre `http://localhost:8000/forensic_tool.html`.
+Luego abre `http://localhost:8000/index.html` o simplemente `http://localhost:8000/`.
 
 ## Técnicas de Análisis
 
@@ -171,7 +171,7 @@ Para agregar, eliminar o renombrar imágenes de ejemplo:
 
 ```
 suite-forense/
-├── forensic_tool.html      # Archivo principal HTML
+├── index.html              # Archivo principal HTML
 ├── forensic_tool.js        # Lógica de procesamiento y análisis
 ├── forensic_tool.css       # Estilos de la aplicación
 ├── examples_list.js        # Lista de imágenes de ejemplo

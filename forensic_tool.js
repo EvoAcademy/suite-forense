@@ -1338,7 +1338,7 @@ function loadExample(imagePath) {
                 corsWarning.classList.remove('hidden');
             }
             
-            alert('Error de CORS: No se puede cargar el archivo desde file://\n\nPor favor, ejecute un servidor local:\n\n1. Abra la terminal en esta carpeta\n2. Ejecute: python3 -m http.server 8000\n3. Abra: http://localhost:8000/forensic_tool.html');
+            alert('Error de CORS: No se puede cargar el archivo desde file://\n\nPor favor, ejecute un servidor local:\n\n1. Abra la terminal en esta carpeta\n2. Ejecute: python3 -m http.server 8000\n3. Abra: http://localhost:8000/index.html');
         };
         
         img.src = path;

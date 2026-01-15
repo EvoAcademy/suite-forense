@@ -22,12 +22,12 @@
                     </h1>
                     <span id="cvStatus" class="status-badge status-loading">Iniciando...</span>
                 </div>
-                <a class="text-gray-500 text-xs font-mono hover:text-blue-600 transition-colors" href="README.md">Ver Docs</a>
+                <a class="text-gray-500 text-xs font-mono hover:text-blue-600 transition-colors" href="https://github.com/EvoAcademy/suite-forense" target="_blank">Ver Docs</a>
             </div>
             <!-- Logo EvoAcademy -->
-            <div class="logo-text">
+            <a href="https://evoacademy.cl" target="_blank" class="logo-text">
                 <span class="logo-evo">Evo</span><span class="logo-academy">Academy</span>
-            </div>
+            </a>
         </header>
 
         <!-- Estrategia de Análisis -->
@@ -75,12 +75,17 @@
                         <h2 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style="color: var(--primary-blue);">
                             <span class="w-2 h-2 rounded-full" style="background-color: var(--accent-blue);"></span> Espectro FFT
                         </h2>
-                        <button id="fullscreenFftBtn" class="text-[10px] font-medium text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1" title="Ver en pantalla completa">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                            </svg>
-                            <span>Pantalla completa</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="fftViewToggleBtn" class="text-[10px] font-medium text-gray-600 hover:text-blue-600 transition-colors" title="Cambiar vista">
+                                Ver Gráfico de Líneas
+                            </button>
+                            <button id="fullscreenFftBtn" class="text-[10px] font-medium text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1" title="Ver en pantalla completa">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                                </svg>
+                                <span>Pantalla completa</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="fftContainer" class="canvas-container flex items-center justify-center bg-black glow-accent aspect-square w-full">
                         <canvas id="fftCanvas"></canvas>
