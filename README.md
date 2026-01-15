@@ -1,4 +1,4 @@
-# Suite Forense - Laboratorio Forense v5.7
+# Suite Forense - Laboratorio Forense
 
 Herramienta web de análisis forense para detectar imágenes generadas por IA usando procesamiento avanzado de imágenes.
 
@@ -82,7 +82,24 @@ En imágenes generadas por IA, el residual espacial típicamente muestra:
 
 - **Artefactos de bordes**: Irregularidades en los bordes de los objetos que sugieren que fueron generados o ensamblados de manera artificial
 
-<img src="img/ejemplo_pelo_tallarin.png" alt="Ejemplo cabello con forma de tallarin, el cual no era visible en la imagen generada" width="200px" />
+<table>
+  <thead>
+    <tr>
+      <th>Residual</th>
+      <th>Original</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <img src="img/ejemplo_pelo_tallarin.png" alt="Ejemplo cabello con forma de tallarin, el cual no era visible en la imagen generada" width="200px" />
+      </td>
+      <td>
+        <img src="img/ejemplo_pelo_original.png" alt="Ejemplo original del cabello" width="200px" />
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 
 ## Flujo de Análisis Recomendado
@@ -136,14 +153,10 @@ suite-forense/
 ## Notas
 
 - El análisis forense de imágenes es una técnica compleja y los resultados deben interpretarse con cuidado
-- Algunas imágenes reales pueden mostrar ciertos artefactos similares debido a compresión o procesamiento
+- Algunas imágenes reales pueden mostrar ciertos artefactos similares debido a compresión o procesamiento (ej: ver camiseta del ejemplo 3_Seba. Se ven cuadros pues la imagen fue comprimida antes de ser procesada, pero estos cuadros son más pequeños de los que se ven en las imagenes generadas)
 - La combinación de las tres técnicas proporciona una evaluación más confiable que el uso individual de cada una
-
-## Licencia
-
-Este proyecto es parte de EvoAcademy Suite Forense.
 
 ---
 
-**Versión**: 5.7  
+**Actualizado**: 14 de enero de 2026 
 **Desarrollado por**: EvoAcademy
