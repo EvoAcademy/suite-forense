@@ -353,7 +353,7 @@ function drawLineChart(canvas, profile, gamma, gain, offset) {
         ctx.font = '7px monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(`Picos: ${peaks.length}`, padding + 3, padding + 3);
+        ctx.fillText(`Peaks: ${peaks.length}`, padding + 3, padding + 3);
     }
 }
 
