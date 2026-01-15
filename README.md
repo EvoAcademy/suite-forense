@@ -1,19 +1,36 @@
 # Suite Forense - Laboratorio Forense v5.7
 
-Herramienta de análisis forense para la detección de imágenes generadas por inteligencia artificial mediante técnicas avanzadas de procesamiento de imágenes.
+Herramienta web de análisis forense para detectar imágenes generadas por IA usando procesamiento avanzado de imágenes.
 
 ## Descripción
 
-Suite Forense es una aplicación web que permite analizar imágenes para identificar si han sido generadas por IA. Utiliza tres técnicas principales de análisis forense: el espectro FFT (Transformada Rápida de Fourier), el mapa de crominancia y el residual espacial. Cada técnica revela diferentes artefactos y patrones característicos que suelen aparecer en imágenes sintéticas.
+Suite Forense permite analizar imágenes con tres técnicas principales: espectro FFT (Transformada Rápida de Fourier), mapa de crominancia y residual espacial. Cada técnica revela artefactos y patrones característicos que suelen aparecer en imágenes sintéticas.
 
 ## Características
 
-- **Análisis FFT**: Visualización del espectro de frecuencias con controles ajustables de gamma, brillo y limpieza
-- **Mapa de Crominancia**: Análisis de componentes de color con ajustes de saturación, contraste y rotación de tono
-- **Residual Espacial**: Detección de patrones y texturas anómalas en la imagen
+- **Análisis FFT**: Visualización del espectro de frecuencias con controles de gamma, brillo y limpieza
+- **Mapa de Crominancia**: Ajustes de saturación, contraste y rotación de tono
+- **Residual Espacial**: Detección de patrones y texturas anómalas
 - **Interfaz Intuitiva**: Diseño moderno y fácil de usar
-- **Vista de Pantalla Completa**: Para análisis detallados
-- **Ejemplos Incluidos**: Galería de imágenes reales y generadas por IA para comparación
+- **Vista de Pantalla Completa**: Análisis detallado por sección
+- **Ejemplos Incluidos**: Galería de imágenes reales y generadas por IA
+
+## Inicio Rápido
+
+1. Abre `forensic_tool.html` en un navegador moderno
+2. Espera a que OpenCV.js se cargue (estado "Motor Listo")
+3. Carga una imagen o selecciona un ejemplo
+4. Ajusta los controles para resaltar artefactos
+
+> Nota: Si abres el archivo directamente desde `file://`, los ejemplos locales pueden fallar por CORS. Usa un servidor local para evitarlo.
+
+## Ejecución Local (recomendado)
+
+```bash
+python3 -m http.server 8000
+```
+
+Luego abre `http://localhost:8000/forensic_tool.html`.
 
 ## Técnicas de Análisis
 
@@ -68,15 +85,11 @@ En imágenes generadas por IA, el residual espacial típicamente muestra:
 <img src="img/ejemplo_pelo_tallarin.png" alt="Ejemplo cabello con forma de tallarin, el cual no era visible en la imagen generada" width="200px" />
 
 
-## Uso
+## Flujo de Análisis Recomendado
 
-1. Abre `forensic_tool.html` en un navegador web moderno
-2. Espera a que OpenCV.js se cargue completamente (indicado por el estado "Motor Listo")
-3. Carga una imagen usando el botón "Cargar Imagen" o selecciona un ejemplo de la galería
-4. Analiza los resultados en las tres visualizaciones:
-   - **Espectro FFT**: Ajusta gamma, brillo y limpieza para identificar peaks y patrones
-   - **Mapa de Crominancia**: Aumenta la saturación al máximo para detectar ruido de color
-   - **Residual Espacial**: Busca texturas en cuadrícula y patrones de ajedrez
+- **FFT**: Si aparecen puntos blancos simétricos o peaks radiales definidos, es un indicador estadístico primario de creación sintética.
+- **Residual**: Busca texturas en cuadrícula o inconsistencias de tipo "ajedrez" que crucen los límites de los objetos.
+- **Croma**: Aumenta la saturación al 1000%. El ruido de color tipo "arcoíris" o cuadrados de diversos colores y consistencias en fondos planos sugiere generación con IA.
 
 ## Actualizar Ejemplos
 
@@ -92,14 +105,6 @@ Para agregar, eliminar o renombrar imágenes de ejemplo:
    ```
 
 3. Recarga la página web para ver los cambios
-
-## Estrategia de Análisis
-
-Para un análisis efectivo, sigue esta estrategia:
-
-- **FFT**: Si aparecen puntos blancos simétricos o peaks radiales definidos, es un indicador estadístico primario de creación sintética.
-- **Residual**: Busca texturas en cuadrícula o inconsistencias de tipo "ajedrez" que crucen los límites de los objetos.
-- **Croma**: Aumenta la saturación al 1000%. El ruido de color tipo "arcoíris" o cuadrados de diversos colores y consistencias en fondos planos sugiere generación con IA.
 
 ## Requisitos Técnicos
 

@@ -118,9 +118,66 @@ let resizeTimer = null;
 // Funciones de Utilidad
 // ============================================
 
+const fullscreenIcons = {
+    enter: `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+        </svg>
+    `,
+    exit: `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+    `
+};
+
+const setFullscreenButtonContent = (button, isFullscreen) => {
+    if (!button) return;
+    button.innerHTML = `
+        ${isFullscreen ? fullscreenIcons.exit : fullscreenIcons.enter}
+        <span>${isFullscreen ? 'Salir' : 'Pantalla completa'}</span>
+    `;
+};
+
 const updateText = (id, val, suffix) => {
     const el = document.getElementById(id);
     if (el) el.textContent = val + suffix;
+};
+
+const calculateContainedSize = (aspectRatio, maxWidth, maxHeight, minDimension = 200) => {
+    let newWidth;
+    let newHeight;
+
+    // Calcular dimensiones expandiendo hasta llenar el espacio disponible manteniendo aspect ratio
+    if (maxWidth / maxHeight > aspectRatio) {
+        // La altura es el factor limitante - expandir hasta la altura máxima
+        newHeight = maxHeight;
+        newWidth = newHeight * aspectRatio;
+    } else {
+        // El ancho es el factor limitante - expandir hasta el ancho máximo
+        newWidth = maxWidth;
+        newHeight = newWidth / aspectRatio;
+    }
+
+    // Asegurar que no exceda los límites (aunque ya debería estar dentro)
+    newWidth = Math.min(newWidth, maxWidth);
+    newHeight = Math.min(newHeight, maxHeight);
+
+    // Asegurar un tamaño mínimo razonable (al menos 200px en la dimensión más pequeña)
+    if (newWidth < minDimension && newHeight < minDimension) {
+        if (aspectRatio > 1) {
+            newWidth = minDimension;
+            newHeight = newWidth / aspectRatio;
+        } else {
+            newHeight = minDimension;
+            newWidth = newHeight * aspectRatio;
+        }
+    }
+
+    return {
+        width: Math.round(newWidth),
+        height: Math.round(newHeight)
+    };
 };
 
 const renderMatToCanvas = (mat, canvas, interpolation = null) => {
@@ -197,6 +254,30 @@ function resizeImageIfNeeded(img, maxDimension = MAX_IMAGE_DIMENSION) {
         };
         resizedImg.src = tempCanvas.toDataURL('image/png');
     });
+}
+
+/**
+ * Procesa una imagen cargada y actualiza todas las vistas.
+ * Reutilizable tanto para carga manual como para ejemplos.
+ */
+async function processLoadedImage(img, logPrefix, alertMessage) {
+    try {
+        // Guardar imagen original para visualización
+        originalImg = img;
+
+        // Crear versión redimensionada para procesamiento
+        const { img: processed, wasResized } = await resizeImageIfNeeded(img);
+        processedImg = processed;
+
+        showImageInfo(processedImg, wasResized);
+        requestProcessing();
+        applyChromaFilters();
+    } catch (error) {
+        console.error(logPrefix, error);
+        alert(alertMessage);
+    } finally {
+        loader.classList.add('hidden');
+    }
 }
 
 /**
@@ -544,24 +625,12 @@ imageInput.addEventListener('change', (e) => {
     
     reader.onload = (event) => {
         const img = new Image();
-        img.onload = async () => {
-            try {
-                // Guardar imagen original para visualización
-                originalImg = img;
-                
-                // Crear versión redimensionada para procesamiento
-                const { img: processed, wasResized } = await resizeImageIfNeeded(img);
-                processedImg = processed;
-                
-                showImageInfo(processedImg, wasResized);
-                requestProcessing();
-                applyChromaFilters();
-                loader.classList.add('hidden');
-            } catch (error) {
-                console.error('Error al procesar imagen:', error);
-                alert('Error al cargar la imagen. Por favor, intente con otra imagen.');
-                loader.classList.add('hidden');
-            }
+        img.onload = () => {
+            processLoadedImage(
+                img,
+                'Error al procesar imagen:',
+                'Error al cargar la imagen. Por favor, intente con otra imagen.'
+            );
         };
         img.onerror = () => {
             console.error('Error al cargar imagen');
@@ -653,19 +722,9 @@ if (fullscreenFftBtn) {
 document.addEventListener('fullscreenchange', () => {
     if (fullscreenFftBtn) {
         if (document.fullscreenElement === fftContainer) {
-            fullscreenFftBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                <span>Salir</span>
-            `;
+            setFullscreenButtonContent(fullscreenFftBtn, true);
         } else {
-            fullscreenFftBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                </svg>
-                <span>Pantalla completa</span>
-            `;
+            setFullscreenButtonContent(fullscreenFftBtn, false);
             // Remover el listener de resize si existe
             if (fullscreenResizeHandler) {
                 window.removeEventListener('resize', fullscreenResizeHandler);
@@ -704,37 +763,10 @@ function toggleFullscreenResidual() {
                     const maxWidth = window.innerWidth * 0.95;
                     const maxHeight = window.innerHeight * 0.95;
                     const aspectRatio = originalImg ? originalImg.width / originalImg.height : 1;
-                    
-                    let newWidth, newHeight;
-                    // Calcular dimensiones expandiendo hasta llenar el espacio disponible manteniendo aspect ratio
-                    if (maxWidth / maxHeight > aspectRatio) {
-                        // La altura es el factor limitante - expandir hasta la altura máxima
-                        newHeight = maxHeight;
-                        newWidth = newHeight * aspectRatio;
-                    } else {
-                        // El ancho es el factor limitante - expandir hasta el ancho máximo
-                        newWidth = maxWidth;
-                        newHeight = newWidth / aspectRatio;
-                    }
-                    
-                    // Asegurar que no exceda los límites (aunque ya debería estar dentro)
-                    newWidth = Math.min(newWidth, maxWidth);
-                    newHeight = Math.min(newHeight, maxHeight);
-                    
-                    // Asegurar un tamaño mínimo razonable (al menos 200px en la dimensión más pequeña)
-                    const minDimension = 200;
-                    if (newWidth < minDimension && newHeight < minDimension) {
-                        if (aspectRatio > 1) {
-                            newWidth = minDimension;
-                            newHeight = newWidth / aspectRatio;
-                        } else {
-                            newHeight = minDimension;
-                            newWidth = newHeight * aspectRatio;
-                        }
-                    }
-                    
-                    residualCanvas.width = Math.round(newWidth);
-                    residualCanvas.height = Math.round(newHeight);
+
+                    const size = calculateContainedSize(aspectRatio, maxWidth, maxHeight);
+                    residualCanvas.width = size.width;
+                    residualCanvas.height = size.height;
                     // Forzar reflow y redibujar el residual si hay una imagen procesada
                     requestAnimationFrame(() => {
                         if (processedImg && cvReady) {
@@ -774,19 +806,9 @@ if (fullscreenResidualBtn) {
 document.addEventListener('fullscreenchange', () => {
     if (fullscreenResidualBtn) {
         if (document.fullscreenElement === residualContainer) {
-            fullscreenResidualBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                <span>Salir</span>
-            `;
+            setFullscreenButtonContent(fullscreenResidualBtn, true);
         } else {
-            fullscreenResidualBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                </svg>
-                <span>Pantalla completa</span>
-            `;
+            setFullscreenButtonContent(fullscreenResidualBtn, false);
             // Remover el listener de resize si existe
             if (fullscreenResidualResizeHandler) {
                 window.removeEventListener('resize', fullscreenResidualResizeHandler);
@@ -824,37 +846,10 @@ function toggleFullscreenChroma() {
                     const maxWidth = window.innerWidth * 0.95;
                     const maxHeight = window.innerHeight * 0.95;
                     const aspectRatio = originalImg ? originalImg.width / originalImg.height : 1;
-                    
-                    let newWidth, newHeight;
-                    // Calcular dimensiones expandiendo hasta llenar el espacio disponible manteniendo aspect ratio
-                    if (maxWidth / maxHeight > aspectRatio) {
-                        // La altura es el factor limitante - expandir hasta la altura máxima
-                        newHeight = maxHeight;
-                        newWidth = newHeight * aspectRatio;
-                    } else {
-                        // El ancho es el factor limitante - expandir hasta el ancho máximo
-                        newWidth = maxWidth;
-                        newHeight = newWidth / aspectRatio;
-                    }
-                    
-                    // Asegurar que no exceda los límites (aunque ya debería estar dentro)
-                    newWidth = Math.min(newWidth, maxWidth);
-                    newHeight = Math.min(newHeight, maxHeight);
-                    
-                    // Asegurar un tamaño mínimo razonable (al menos 200px en la dimensión más pequeña)
-                    const minDimension = 200;
-                    if (newWidth < minDimension && newHeight < minDimension) {
-                        if (aspectRatio > 1) {
-                            newWidth = minDimension;
-                            newHeight = newWidth / aspectRatio;
-                        } else {
-                            newHeight = minDimension;
-                            newWidth = newHeight * aspectRatio;
-                        }
-                    }
-                    
-                    chromaCanvas.width = Math.round(newWidth);
-                    chromaCanvas.height = Math.round(newHeight);
+
+                    const size = calculateContainedSize(aspectRatio, maxWidth, maxHeight);
+                    chromaCanvas.width = size.width;
+                    chromaCanvas.height = size.height;
                     // Forzar reflow y redibujar el chroma si hay una imagen procesada
                     requestAnimationFrame(() => {
                         if (originalImg) {
@@ -894,19 +889,9 @@ if (fullscreenChromaBtn) {
 document.addEventListener('fullscreenchange', () => {
     if (fullscreenChromaBtn) {
         if (document.fullscreenElement === chromaContainer) {
-            fullscreenChromaBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                <span>Salir</span>
-            `;
+            setFullscreenButtonContent(fullscreenChromaBtn, true);
         } else {
-            fullscreenChromaBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                </svg>
-                <span>Pantalla completa</span>
-            `;
+            setFullscreenButtonContent(fullscreenChromaBtn, false);
             // Remover el listener de resize si existe
             if (fullscreenChromaResizeHandler) {
                 window.removeEventListener('resize', fullscreenChromaResizeHandler);
@@ -969,20 +954,12 @@ function loadExample(imagePath) {
     const thumbnailImg = thumbnail ? thumbnail.querySelector('img.example-img') : null;
     
     // Función para procesar la imagen una vez cargada
-    const processImage = async (img) => {
-        try {
-            originalImg = img;
-            const { img: processed, wasResized } = await resizeImageIfNeeded(img);
-            processedImg = processed;
-            showImageInfo(processedImg, wasResized);
-            requestProcessing();
-            applyChromaFilters();
-            loader.classList.add('hidden');
-        } catch (error) {
-            console.error('Error al procesar imagen de ejemplo:', error);
-            alert('Error al procesar el ejemplo. Por favor, intente con otro.');
-            loader.classList.add('hidden');
-        }
+    const processImage = (img) => {
+        processLoadedImage(
+            img,
+            'Error al procesar imagen de ejemplo:',
+            'Error al procesar el ejemplo. Por favor, intente con otro.'
+        );
     };
     
     // Si el thumbnail existe y tiene una imagen cargada, usarla directamente desde canvas
