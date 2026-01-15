@@ -208,6 +208,7 @@ input[type="range"] {
     background: #000;
     border-radius: 0;
     border: none;
+    overflow: visible;
 }
 
 :fullscreen #fftCanvas {
@@ -215,4 +216,50 @@ input[type="range"] {
     max-height: 90vh;
     width: auto !important;
     height: auto !important;
+}
+
+/* Estilos para pantalla completa - Residual Espacial */
+:fullscreen #residualContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    border-radius: 0;
+    border: none;
+    overflow: visible;
+}
+
+:fullscreen #residualCanvas {
+    max-width: 95vw !important;
+    max-height: 95vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+    image-rendering: auto;
+    display: block;
+}
+
+/* Estilos para pantalla completa - Mapa de Crominancia */
+:fullscreen #chromaContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    border-radius: 0;
+    border: none;
+    overflow: visible;
+}
+
+:fullscreen #chromaCanvas {
+    max-width: 95vw !important;
+    max-height: 95vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+    image-rendering: auto;
+    display: block;
 }

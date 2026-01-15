@@ -123,6 +123,21 @@ const updateText = (id, val, suffix) => {
     if (el) el.textContent = val + suffix;
 };
 
+const renderMatToCanvas = (mat, canvas, interpolation = null) => {
+    if (!mat || !canvas) return;
+    const interp = interpolation ?? cv.INTER_AREA;
+    const targetWidth = Math.max(1, Math.round(canvas.width));
+    const targetHeight = Math.max(1, Math.round(canvas.height));
+    if (mat.cols === targetWidth && mat.rows === targetHeight) {
+        cv.imshow(canvas.id, mat);
+        return;
+    }
+    const resized = new cv.Mat();
+    cv.resize(mat, resized, new cv.Size(targetWidth, targetHeight), 0, 0, interp);
+    cv.imshow(canvas.id, resized);
+    resized.delete();
+};
+
 /**
  * Redimensiona una imagen manteniendo el aspect ratio
  * para prevenir problemas de memoria
@@ -328,9 +343,30 @@ function processAdvancedForensics(img) {
         
         // Mostrar residual en canvas
         const residualContainer = residualCanvas.parentElement;
-        residualCanvas.width = residualContainer.clientWidth;
-        residualCanvas.height = (residualContainer.clientWidth / visualResidual.cols) * visualResidual.rows;
-        cv.imshow('residualCanvas', visualResidual);
+        // Si estamos en pantalla completa, mantener el tamaño del canvas o calcularlo basándose en la ventana
+        if (document.fullscreenElement === residualContainer) {
+            // En pantalla completa, calcular tamaño basándose en la ventana
+            const maxWidth = window.innerWidth * 0.95;
+            const maxHeight = window.innerHeight * 0.95;
+            const aspectRatio = visualResidual.cols / visualResidual.rows;
+            
+            let newWidth, newHeight;
+            if (maxWidth / maxHeight > aspectRatio) {
+                newHeight = maxHeight;
+                newWidth = newHeight * aspectRatio;
+            } else {
+                newWidth = maxWidth;
+                newHeight = newWidth / aspectRatio;
+            }
+            
+            residualCanvas.width = Math.round(newWidth);
+            residualCanvas.height = Math.round(newHeight);
+        } else {
+            // Tamaño normal basado en el contenedor
+            residualCanvas.width = residualContainer.clientWidth;
+            residualCanvas.height = (residualContainer.clientWidth / visualResidual.cols) * visualResidual.rows;
+        }
+        renderMatToCanvas(visualResidual, residualCanvas, cv.INTER_AREA);
 
         // FFT Prep
         let optimalRows = cv.getOptimalDFTSize(residual.rows);
@@ -417,7 +453,7 @@ function processAdvancedForensics(img) {
         const fftSize = fftCanvas.parentElement.clientWidth;
         fftCanvas.width = fftSize;
         fftCanvas.height = fftSize;
-        cv.imshow('fftCanvas', shiftedMag);
+        renderMatToCanvas(shiftedMag, fftCanvas, cv.INTER_NEAREST);
 
     } catch (err) {
         console.error("Error crítico en procesamiento OpenCV:", err);
@@ -616,7 +652,7 @@ if (fullscreenFftBtn) {
 // Actualizar el botón cuando cambia el estado de pantalla completa
 document.addEventListener('fullscreenchange', () => {
     if (fullscreenFftBtn) {
-        if (document.fullscreenElement) {
+        if (document.fullscreenElement === fftContainer) {
             fullscreenFftBtn.innerHTML = `
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -635,13 +671,256 @@ document.addEventListener('fullscreenchange', () => {
                 window.removeEventListener('resize', fullscreenResizeHandler);
                 fullscreenResizeHandler = null;
             }
-            // Restaurar tamaño normal
-            const container = fftContainer.parentElement;
-            const size = container.clientWidth;
-            fftCanvas.width = size;
-            fftCanvas.height = size;
-            if (processedImg && cvReady) {
-                requestProcessing();
+            // Restaurar tamaño normal solo si salimos del fullscreen del FFT
+            if (!document.fullscreenElement) {
+                const container = fftContainer.parentElement;
+                const size = container.clientWidth;
+                fftCanvas.width = size;
+                fftCanvas.height = size;
+                if (processedImg && cvReady) {
+                    requestProcessing();
+                }
+            }
+        }
+    }
+});
+
+// ============================================
+// Pantalla Completa para Residual Espacial
+// ============================================
+
+const fullscreenResidualBtn = document.getElementById('fullscreenResidualBtn');
+const residualContainer = document.getElementById('residualContainer');
+
+let fullscreenResidualResizeHandler = null;
+
+function toggleFullscreenResidual() {
+    if (!document.fullscreenElement) {
+        // Entrar en pantalla completa
+        residualContainer.requestFullscreen().then(() => {
+            // Ajustar tamaño del canvas en pantalla completa
+            const updateFullscreenCanvas = () => {
+                if (document.fullscreenElement && document.fullscreenElement === residualContainer) {
+                    const maxWidth = window.innerWidth * 0.95;
+                    const maxHeight = window.innerHeight * 0.95;
+                    const aspectRatio = originalImg ? originalImg.width / originalImg.height : 1;
+                    
+                    let newWidth, newHeight;
+                    // Calcular dimensiones expandiendo hasta llenar el espacio disponible manteniendo aspect ratio
+                    if (maxWidth / maxHeight > aspectRatio) {
+                        // La altura es el factor limitante - expandir hasta la altura máxima
+                        newHeight = maxHeight;
+                        newWidth = newHeight * aspectRatio;
+                    } else {
+                        // El ancho es el factor limitante - expandir hasta el ancho máximo
+                        newWidth = maxWidth;
+                        newHeight = newWidth / aspectRatio;
+                    }
+                    
+                    // Asegurar que no exceda los límites (aunque ya debería estar dentro)
+                    newWidth = Math.min(newWidth, maxWidth);
+                    newHeight = Math.min(newHeight, maxHeight);
+                    
+                    // Asegurar un tamaño mínimo razonable (al menos 200px en la dimensión más pequeña)
+                    const minDimension = 200;
+                    if (newWidth < minDimension && newHeight < minDimension) {
+                        if (aspectRatio > 1) {
+                            newWidth = minDimension;
+                            newHeight = newWidth / aspectRatio;
+                        } else {
+                            newHeight = minDimension;
+                            newWidth = newHeight * aspectRatio;
+                        }
+                    }
+                    
+                    residualCanvas.width = Math.round(newWidth);
+                    residualCanvas.height = Math.round(newHeight);
+                    // Forzar reflow y redibujar el residual si hay una imagen procesada
+                    requestAnimationFrame(() => {
+                        if (processedImg && cvReady) {
+                            requestProcessing();
+                        }
+                    });
+                }
+            };
+            updateFullscreenCanvas();
+            // Guardar referencia al handler para poder removerlo después
+            fullscreenResidualResizeHandler = updateFullscreenCanvas;
+            window.addEventListener('resize', fullscreenResidualResizeHandler);
+        }).catch(err => {
+            console.error('Error al entrar en pantalla completa:', err);
+            alert('No se pudo activar el modo pantalla completa. Asegúrate de que el navegador lo permita.');
+        });
+    } else {
+        // Salir de pantalla completa
+        document.exitFullscreen().then(() => {
+            // Remover el listener de resize
+            if (fullscreenResidualResizeHandler) {
+                window.removeEventListener('resize', fullscreenResidualResizeHandler);
+                fullscreenResidualResizeHandler = null;
+            }
+        }).catch(err => {
+            console.error('Error al salir de pantalla completa:', err);
+        });
+    }
+}
+
+// Event listener para el botón
+if (fullscreenResidualBtn) {
+    fullscreenResidualBtn.addEventListener('click', toggleFullscreenResidual);
+}
+
+// Actualizar el botón cuando cambia el estado de pantalla completa
+document.addEventListener('fullscreenchange', () => {
+    if (fullscreenResidualBtn) {
+        if (document.fullscreenElement === residualContainer) {
+            fullscreenResidualBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span>Salir</span>
+            `;
+        } else {
+            fullscreenResidualBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                </svg>
+                <span>Pantalla completa</span>
+            `;
+            // Remover el listener de resize si existe
+            if (fullscreenResidualResizeHandler) {
+                window.removeEventListener('resize', fullscreenResidualResizeHandler);
+                fullscreenResidualResizeHandler = null;
+            }
+            // Restaurar tamaño normal solo si salimos del fullscreen del residual
+            if (!document.fullscreenElement) {
+                const container = residualContainer.parentElement;
+                residualCanvas.width = container.clientWidth;
+                residualCanvas.height = (container.clientWidth / (originalImg ? originalImg.width : 1)) * (originalImg ? originalImg.height : 1);
+                if (processedImg && cvReady) {
+                    requestProcessing();
+                }
+            }
+        }
+    }
+});
+
+// ============================================
+// Pantalla Completa para Mapa de Crominancia
+// ============================================
+
+const fullscreenChromaBtn = document.getElementById('fullscreenChromaBtn');
+const chromaContainer = document.getElementById('chromaContainer');
+
+let fullscreenChromaResizeHandler = null;
+
+function toggleFullscreenChroma() {
+    if (!document.fullscreenElement) {
+        // Entrar en pantalla completa
+        chromaContainer.requestFullscreen().then(() => {
+            // Ajustar tamaño del canvas en pantalla completa
+            const updateFullscreenCanvas = () => {
+                if (document.fullscreenElement && document.fullscreenElement === chromaContainer) {
+                    const maxWidth = window.innerWidth * 0.95;
+                    const maxHeight = window.innerHeight * 0.95;
+                    const aspectRatio = originalImg ? originalImg.width / originalImg.height : 1;
+                    
+                    let newWidth, newHeight;
+                    // Calcular dimensiones expandiendo hasta llenar el espacio disponible manteniendo aspect ratio
+                    if (maxWidth / maxHeight > aspectRatio) {
+                        // La altura es el factor limitante - expandir hasta la altura máxima
+                        newHeight = maxHeight;
+                        newWidth = newHeight * aspectRatio;
+                    } else {
+                        // El ancho es el factor limitante - expandir hasta el ancho máximo
+                        newWidth = maxWidth;
+                        newHeight = newWidth / aspectRatio;
+                    }
+                    
+                    // Asegurar que no exceda los límites (aunque ya debería estar dentro)
+                    newWidth = Math.min(newWidth, maxWidth);
+                    newHeight = Math.min(newHeight, maxHeight);
+                    
+                    // Asegurar un tamaño mínimo razonable (al menos 200px en la dimensión más pequeña)
+                    const minDimension = 200;
+                    if (newWidth < minDimension && newHeight < minDimension) {
+                        if (aspectRatio > 1) {
+                            newWidth = minDimension;
+                            newHeight = newWidth / aspectRatio;
+                        } else {
+                            newHeight = minDimension;
+                            newWidth = newHeight * aspectRatio;
+                        }
+                    }
+                    
+                    chromaCanvas.width = Math.round(newWidth);
+                    chromaCanvas.height = Math.round(newHeight);
+                    // Forzar reflow y redibujar el chroma si hay una imagen procesada
+                    requestAnimationFrame(() => {
+                        if (originalImg) {
+                            applyChromaFilters();
+                        }
+                    });
+                }
+            };
+            updateFullscreenCanvas();
+            // Guardar referencia al handler para poder removerlo después
+            fullscreenChromaResizeHandler = updateFullscreenCanvas;
+            window.addEventListener('resize', fullscreenChromaResizeHandler);
+        }).catch(err => {
+            console.error('Error al entrar en pantalla completa:', err);
+            alert('No se pudo activar el modo pantalla completa. Asegúrate de que el navegador lo permita.');
+        });
+    } else {
+        // Salir de pantalla completa
+        document.exitFullscreen().then(() => {
+            // Remover el listener de resize
+            if (fullscreenChromaResizeHandler) {
+                window.removeEventListener('resize', fullscreenChromaResizeHandler);
+                fullscreenChromaResizeHandler = null;
+            }
+        }).catch(err => {
+            console.error('Error al salir de pantalla completa:', err);
+        });
+    }
+}
+
+// Event listener para el botón
+if (fullscreenChromaBtn) {
+    fullscreenChromaBtn.addEventListener('click', toggleFullscreenChroma);
+}
+
+// Actualizar el botón cuando cambia el estado de pantalla completa
+document.addEventListener('fullscreenchange', () => {
+    if (fullscreenChromaBtn) {
+        if (document.fullscreenElement === chromaContainer) {
+            fullscreenChromaBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span>Salir</span>
+            `;
+        } else {
+            fullscreenChromaBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                </svg>
+                <span>Pantalla completa</span>
+            `;
+            // Remover el listener de resize si existe
+            if (fullscreenChromaResizeHandler) {
+                window.removeEventListener('resize', fullscreenChromaResizeHandler);
+                fullscreenChromaResizeHandler = null;
+            }
+            // Restaurar tamaño normal solo si salimos del fullscreen del chroma
+            if (!document.fullscreenElement) {
+                const containerWidth = chromaContainer.parentElement.clientWidth;
+                const scale = containerWidth / (originalImg ? originalImg.width : 1);
+                chromaCanvas.width = (originalImg ? originalImg.width : 1) * scale;
+                chromaCanvas.height = (originalImg ? originalImg.height : 1) * scale;
+                if (originalImg) {
+                    applyChromaFilters();
+                }
             }
         }
     }
@@ -885,27 +1164,3 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// ============================================
-// Botón de Regenerar Ejemplos
-// ============================================
-
-const regenerateExamplesBtn = document.getElementById('regenerateExamplesBtn');
-
-if (regenerateExamplesBtn) {
-    regenerateExamplesBtn.addEventListener('click', async () => {
-        // Mostrar mensaje de carga
-        const originalText = regenerateExamplesBtn.innerHTML;
-        regenerateExamplesBtn.innerHTML = `
-            <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-            <span>Recargando...</span>
-        `;
-        regenerateExamplesBtn.disabled = true;
-        
-        // Recargar la página con cache buster para forzar la recarga de todos los recursos
-        setTimeout(() => {
-            window.location.reload(true);
-        }, 500);
-    });
-}
