@@ -49,7 +49,7 @@ El **espectro FFT** es una representación de la imagen en el dominio de frecuen
 El gráfico de líneas muestra:
 - **Eje X**: Frecuencia normalizada (0 = DC, 0.5 = Nyquist)
 - **Eje Y**: Magnitud del espectro (normalizada)
-- **Detección automática de peaks**: Los picos significativos se marcan automáticamente en rojo, ya que son indicadores característicos de imágenes sintéticas
+- **Detección automática de peaks**: Los peaks significativos se marcan automáticamente en rojo, ya que son indicadores característicos de imágenes sintéticas
 
 **¿Qué se ve normalmente en una imagen generada por IA?**
 
@@ -58,7 +58,7 @@ En imágenes generadas por IA, el espectro FFT típicamente muestra:
 
 <img src="img/ejemplo_puntos_simetricos.png" alt="Ejemplo puntos" width="200px" />
 
-- **Peaks radiales definidos**: Líneas o patrones radiales que se extienden desde el centro, resultado de procesos de convolución y normalización utilizados en las redes neuronales generativas. En el gráfico de líneas, estos aparecen como picos pronunciados en frecuencias específicas.
+- **Peaks radiales definidos**: Líneas o patrones radiales que se extienden desde el centro, resultado de procesos de convolución y normalización utilizados en las redes neuronales generativas. En el gráfico de líneas, estos aparecen como peaks pronunciados en frecuencias específicas.
 
 <img src="img/ejemplo_peaks_radiales.png" alt="Ejemplo peaks" width="200px" />
 
@@ -66,7 +66,7 @@ En imágenes generadas por IA, el espectro FFT típicamente muestra:
 
 - **Patrones regulares**: Estructuras repetitivas que no corresponden a patrones naturales, sino a artefactos del proceso de generación
 
-Estos patrones son indicadores de creación sintética, ya que las imágenes reales fotografiadas naturalmente no presentan estas regularidades tan marcadas en el dominio de frecuencias. Las imágenes reales tienden a mostrar distribuciones espectrales más suaves sin picos pronunciados.
+Estos patrones son indicadores de creación sintética, ya que las imágenes reales fotografiadas naturalmente no presentan estas regularidades tan marcadas en el dominio de frecuencias. Las imágenes reales tienden a mostrar distribuciones espectrales más suaves sin peaks pronunciados.
 
 **Referencia científica:**
 
